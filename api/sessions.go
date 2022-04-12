@@ -48,13 +48,11 @@ func sessions(args []string) (string, error) {
 				}
 
 			}
-
 		case "execute":
 			args = args[1:]
 			if len(args) >= 1 {
 				// Implement
 			}
-
 		case "help":
 			return sessionHelp(), nil
 		default:

@@ -46,8 +46,9 @@ func def(line string) (string, error) {
 func New() *cmd.Cmd {
 	var commands map[string]cmd.CmdFn = make(map[string]cmd.CmdFn)
 	commands["help"] = help
-	commands["sessions"] = sessions
 	commands["exit"] = exit
+	commands["sessions"] = sessions
+	commands["hashes"] = hashes
 
 	cli := cmd.New(commands, os.Stdin, os.Stdout)
 	cli.Default = def
