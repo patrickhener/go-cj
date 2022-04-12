@@ -3,10 +3,14 @@ package api
 import (
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 // main function to dispatch
-func hashes(args []string) (string, error) {
+func dispatchHashes(input string, l *readline.Instance) error {
+	args := strings.Split(input, " ")
 	if len(args) >= 1 {
 		switch args[0] {
 		case "download":
@@ -14,7 +18,7 @@ func hashes(args []string) (string, error) {
 			// try converting to numeric id
 			id, err := strconv.Atoi(args[0])
 			if err != nil {
-				return "ID has to be numeric\n", nil
+				return fmt.Errorf("%s", "ID must be numeric")
 			}
 
 			args = args[1:]
@@ -25,26 +29,12 @@ func hashes(args []string) (string, error) {
 					return downloadCracked(id, "cracked")
 				case "plain":
 					return downloadCracked(id, "plain")
-				default:
-					return hashesHelp(), nil
 				}
 			}
-		case "help":
-			return hashesHelp(), nil
 		default:
-			return hashesHelp(), nil
 		}
 	}
-	return hashesHelp(), nil
-}
 
-func hashesHelp() string {
-	return fmt.Sprint(`
-Available commands for 'hashes' are:
-
-  download <id> [cracked, plain]
-    - cracked downloads a file with a unique list of cracked passwords [hash:password]
-    - plain downloads a file with non unique cracked credentials [username:passwords]
-
-`)
+	usage(l.Stderr())
+	return nil
 }

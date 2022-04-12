@@ -1,58 +1,89 @@
 package api
 
 import (
-	"fmt"
-	"os"
+	"io"
+	"log"
 	"strings"
 
-	"github.com/kisielk/cmd"
+	"github.com/chzyer/readline"
 )
 
-// Functions
-func help(args []string) (string, error) {
-	text := fmt.Sprint(`
-Available API commands are:
-
-  sessions
-  hashes
-  hashcat
-  mask
-  wordlist
-  rules
-
-Use '<command> help' to get more information on a specific command.
-
-Program commands:
-
-  help - print help
-  exit - terminate api client
-
-`)
-	return text, nil
+func usage(w io.Writer) {
+	_, _ = io.WriteString(w, "Available commands:\n")
+	_, _ = io.WriteString(w, completer.Tree("    "))
 }
 
-func exit(args []string) (string, error) {
-	fmt.Println("Thanks for using go-cj, bye!")
-	os.Exit(1)
-	return "", nil
+var completer = readline.NewPrefixCompleter(
+	readline.PcItem("sessions",
+		readline.PcItem("get",
+			readline.PcItem("all"), readline.PcItemDynamic(getAllSessionIDs())),
+		readline.PcItem("set",
+			readline.PcItemDynamic(getAllSessionIDs(),
+				readline.PcItem("termination"), readline.PcItem("notification")))),
+	readline.PcItem("hashes",
+		readline.PcItem("download",
+			readline.PcItem("<id>",
+				readline.PcItem("cracked"), readline.PcItem("plain")))),
+	readline.PcItem("help"),
+	readline.PcItem("exit"),
+)
+
+func filterInput(r rune) (rune, bool) {
+	switch r {
+	// block CtrlZ feature
+	case readline.CharCtrlZ:
+		return r, false
+	}
+	return r, true
 }
 
-func def(line string) (string, error) {
-	line = strings.TrimSuffix(line, "\n")
-	return fmt.Sprintf("The command '%s' is either not defined or not implemented yet.\n", line), nil
-}
+func Run() {
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:          "\033[31mgo-cj »\033[0m ",
+		HistoryFile:     "/tmp/readline.tmp",
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
 
-// Loop Instance
-func New() *cmd.Cmd {
-	var commands map[string]cmd.CmdFn = make(map[string]cmd.CmdFn)
-	commands["help"] = help
-	commands["exit"] = exit
-	commands["sessions"] = sessions
-	commands["hashes"] = hashes
+		HistorySearchFold:   true,
+		FuncFilterInputRune: filterInput,
+	})
 
-	cli := cmd.New(commands, os.Stdin, os.Stdout)
-	cli.Default = def
-	cli.Prompt = "go-cj > "
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
 
-	return cli
+	log.SetOutput(l.Stderr())
+
+	for {
+		line, err := l.Readline()
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				break
+			} else {
+				continue
+			}
+		} else if err == io.EOF {
+			break
+		}
+
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "sessions "):
+			if err := dispatchSessions(line[9:], l); err != nil {
+				log.Printf("Error: %+v", err)
+			}
+		case strings.HasPrefix(line, "hashes "):
+			if err := dispatchHashes(line[7:], l); err != nil {
+				log.Printf("Error: %+v", err)
+			}
+
+		case line == "help":
+			usage(l.Stderr())
+		case line == "exit":
+			goto exit
+		}
+	}
+exit:
 }

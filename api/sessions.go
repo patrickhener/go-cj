@@ -3,10 +3,14 @@ package api
 import (
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 // main function to dispatch
-func sessions(args []string) (string, error) {
+func dispatchSessions(input string, l *readline.Instance) error {
+	args := strings.Split(input, " ")
 	if len(args) >= 1 {
 		switch args[0] {
 		case "get":
@@ -20,7 +24,7 @@ func sessions(args []string) (string, error) {
 					// try converting to numeric id
 					id, err := strconv.Atoi(args[0])
 					if err != nil {
-						return "ID has to be numeric\n", nil
+						return fmt.Errorf("%s", "ID must be numeric")
 					}
 
 					return getSpecificSession(id)
@@ -32,7 +36,7 @@ func sessions(args []string) (string, error) {
 				// try converting to numeric id
 				id, err := strconv.Atoi(args[0])
 				if err != nil {
-					return "ID has to be numeric\n", nil
+					return fmt.Errorf("%s", "ID must be numeric")
 				}
 				// DEBUG
 				fmt.Println(id)
@@ -46,32 +50,11 @@ func sessions(args []string) (string, error) {
 						// Implement
 					}
 				}
-
 			}
-		case "execute":
-			args = args[1:]
-			if len(args) >= 1 {
-				// Implement
-			}
-		case "help":
-			return sessionHelp(), nil
 		default:
-			return sessionHelp(), nil
-
 		}
 	}
-	return sessionHelp(), nil
-}
 
-func sessionHelp() string {
-	return fmt.Sprint(`
-Available commands for 'sessions' are:
-
-  get all
-  get <id>
-  set <id> termination <YYYY-MM-DD-HH:MM>
-  set <id> notification [true, false]
-  execute <id> [start,stop,pause,rebuild,restore]
-
-`)
+	usage(l.Stderr())
+	return nil
 }

@@ -44,9 +44,5 @@ func main() {
 
 	// Api loop
 	fmt.Println("[*] Starting command loop - type 'help' for information on how to use it")
-	api := api.New()
-	err = api.Loop()
-	if err != nil {
-		panic(err)
-	}
+	api.Run()
 }

@@ -73,17 +73,17 @@ func sendRequest(endpoint, method, contenttype string, requestBody []byte) ([]by
 	return body, nil
 }
 
-func getAllSessions() (string, error) {
+func getAllSessions() error {
 	var sessions []Session
 
 	result, err := sendRequest("sessions", "GET", "", nil)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// parse results
 	if err := json.Unmarshal(result, &sessions); err != nil {
-		return "", err
+		return err
 	}
 
 	// Render table
@@ -94,25 +94,48 @@ func getAllSessions() (string, error) {
 	}
 	table.Render()
 
-	return "", nil
+	return nil
 }
 
-func getSpecificSession(id int) (string, error) {
+func getAllSessionIDs() func(string) []string {
+	return func(line string) []string {
+		var sessions []Session
+		ids := make([]string, 0)
+
+		result, err := sendRequest("sessions", "GET", "", nil)
+		if err != nil {
+			return ids
+		}
+
+		// parse results
+		if err := json.Unmarshal(result, &sessions); err != nil {
+			return ids
+		}
+
+		for _, s := range sessions {
+			ids = append(ids, fmt.Sprint(s.ID))
+		}
+
+		return ids
+	}
+}
+
+func getSpecificSession(id int) error {
 	var s Session
 
 	result, err := sendRequest(fmt.Sprintf("sessions/%d", id), "GET", "", nil)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// parse results
 	if err := json.Unmarshal(result, &s); err != nil {
-		return "", err
+		return err
 	}
 
 	fmt.Printf("\nID: %d\nDescription: %s\nUsername: %s\nActive: %+v\nCreated At: %s\nTerminate At: %s\nNotifications: %+v\nHashes provided: %d\nHashes cracked: %d\nProgress: %s %%\nTime Remaining: %s\nCompleted At: %s\n\n", s.ID, s.Description, s.Username, s.Active, s.CreatedAt, s.TerminateAt, s.NotificationEnabled, s.Hashcat.AllPasswords, s.Hashcat.CrackedPasswords, s.Hashcat.Progress, s.Hashcat.TimeRemaining, s.Hashcat.ETA)
 
-	return "", nil
+	return nil
 }
 
 /* Hashes section */
@@ -120,18 +143,18 @@ type HashesDownloadBody struct {
 	Type string `json:"type"`
 }
 
-func downloadCracked(id int, format string) (string, error) {
+func downloadCracked(id int, format string) error {
 	hashesDownloadBody := HashesDownloadBody{
 		Type: format,
 	}
 	bodyJson, err := json.Marshal(hashesDownloadBody)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	result, err := sendRequest(fmt.Sprintf("hashes/%d/download", id), "POST", "application/json", bodyJson)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// save to file
@@ -145,13 +168,13 @@ func downloadCracked(id int, format string) (string, error) {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(cwd, filename), result, os.ModePerm); err != nil {
-		return "", err
+		return err
 	}
 	fmt.Printf("Results were saved to: %s\n", fmt.Sprintf("%s", filepath.Join(cwd, filename)))
 
-	return "", nil
+	return nil
 }
