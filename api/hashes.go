@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -35,6 +36,18 @@ func dispatchHashes(input string, l *readline.Instance) error {
 		}
 	}
 
-	usage(l.Stderr())
+	hashUsage(l.Stderr())
 	return nil
+}
+
+var hashCompleter = readline.NewPrefixCompleter(
+	readline.PcItem("download",
+		readline.PcItemDynamic(getAllSessionIDs(),
+			readline.PcItem("cracked"), readline.PcItem("plain"))),
+)
+
+func hashUsage(w io.Writer) {
+	_, _ = io.WriteString(w, "Hashes commands:\n")
+	_, _ = io.WriteString(w, hashCompleter.Tree("    "))
+	_, _ = io.WriteString(w, "\n")
 }

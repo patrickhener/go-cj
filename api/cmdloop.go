@@ -8,29 +8,25 @@ import (
 	"github.com/chzyer/readline"
 )
 
-func usage(w io.Writer) {
-	_, _ = io.WriteString(w, "Available commands:\n")
-	_, _ = io.WriteString(w, completer.Tree("    "))
+var Mode string = ""
+
+func modeUsage(w io.Writer) {
+	_, _ = io.WriteString(w, "Basic commands:\n")
+	_, _ = io.WriteString(w, modeCompleter.Tree("    "))
+	_, _ = io.WriteString(w, "\n")
 }
 
-var completer = readline.NewPrefixCompleter(
-	readline.PcItem("sessions",
-		readline.PcItem("get",
-			readline.PcItem("all"), readline.PcItemDynamic(getAllSessionIDs())),
-		readline.PcItem("set",
-			readline.PcItemDynamic(getAllSessionIDs(),
-				readline.PcItem("termination"), readline.PcItem("notification")))),
-	readline.PcItem("hashes",
-		readline.PcItem("download",
-			readline.PcItem("<id>",
-				readline.PcItem("cracked"), readline.PcItem("plain")))),
+var modeCompleter = readline.NewPrefixCompleter(
+	readline.PcItem("sessions"),
+	readline.PcItem("hashes"),
+	readline.PcItem("back"),
 	readline.PcItem("help"),
 	readline.PcItem("exit"),
 )
 
 func filterInput(r rune) (rune, bool) {
 	switch r {
-	// block CtrlZ feature
+	// block Ctrl+Z feature
 	case readline.CharCtrlZ:
 		return r, false
 	}
@@ -38,16 +34,17 @@ func filterInput(r rune) (rune, bool) {
 }
 
 func Run() {
-	l, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[31mgo-cj »\033[0m ",
+	startConfig := &readline.Config{
+		Prompt:          "\033[31m\033[1;35mgo-cj »\033[0m ",
 		HistoryFile:     "/tmp/readline.tmp",
-		AutoComplete:    completer,
+		AutoComplete:    modeCompleter,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 
 		HistorySearchFold:   true,
 		FuncFilterInputRune: filterInput,
-	})
+	}
+	l, err := readline.NewEx(startConfig)
 
 	if err != nil {
 		panic(err)
@@ -69,20 +66,40 @@ func Run() {
 		}
 
 		line = strings.TrimSpace(line)
-		switch {
-		case strings.HasPrefix(line, "sessions "):
-			if err := dispatchSessions(line[9:], l); err != nil {
-				log.Printf("Error: %+v", err)
-			}
-		case strings.HasPrefix(line, "hashes "):
-			if err := dispatchHashes(line[7:], l); err != nil {
-				log.Printf("Error: %+v", err)
-			}
 
+		// Switch mode
+		switch {
+		case line == "sessions":
+			Mode = "sessions"
+			l.SetPrompt("\033[31m\033[1;35mgo-cj (sessions) »\033[0m ")
+			l.Config.AutoComplete = sessionCompleter
+		case line == "hashes":
+			Mode = "hashes"
+			l.SetPrompt("\033[31m\033[1;35mgo-cj (hashes) »\033[0m ")
+			l.Config.AutoComplete = hashCompleter
+		case line == "back":
+			Mode = ""
+			l.SetPrompt(startConfig.Prompt)
+			l.Config.AutoComplete = modeCompleter
 		case line == "help":
-			usage(l.Stderr())
+			modeUsage(l.Stderr())
 		case line == "exit":
 			goto exit
+		default:
+		}
+
+		// If there is a mode dispatch
+		if Mode != "" {
+			switch Mode {
+			case "sessions":
+				if err := dispatchSessions(strings.TrimSpace(line), l); err != nil {
+					log.Printf("Error: %+v", err)
+				}
+			case "hashes":
+				if err := dispatchHashes(strings.TrimSpace(line), l); err != nil {
+					log.Printf("Error: %+v", err)
+				}
+			}
 		}
 	}
 exit:

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -55,6 +56,20 @@ func dispatchSessions(input string, l *readline.Instance) error {
 		}
 	}
 
-	usage(l.Stderr())
+	sessionUsage(l.Stderr())
 	return nil
+}
+
+var sessionCompleter = readline.NewPrefixCompleter(
+	readline.PcItem("get",
+		readline.PcItem("all"), readline.PcItemDynamic(getAllSessionIDs())),
+	readline.PcItem("set",
+		readline.PcItemDynamic(getAllSessionIDs(),
+			readline.PcItem("termination"), readline.PcItem("notification"))),
+)
+
+func sessionUsage(w io.Writer) {
+	_, _ = io.WriteString(w, "Session commands:\n")
+	_, _ = io.WriteString(w, sessionCompleter.Tree("    "))
+	_, _ = io.WriteString(w, "\n")
 }
